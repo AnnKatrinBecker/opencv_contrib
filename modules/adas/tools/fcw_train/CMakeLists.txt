@@ -13,7 +13,7 @@ endif()
 project(${the_target})
 
 ocv_include_directories("${OpenCV_SOURCE_DIR}/include/opencv")
-ocv_include_modules(${OPENCV_${the_target}_DEPS})
+ocv_include_modules_recurse(${OPENCV_${the_target}_DEPS})
 
 file(GLOB ${the_target}_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
@@ -32,4 +32,4 @@ if(ENABLE_SOLUTION_FOLDERS)
   set_target_properties(${the_target} PROPERTIES FOLDER "applications")
 endif()
 
-install(TARGETS ${the_target} RUNTIME DESTINATION bin COMPONENT main)
+install(TARGETS ${the_target} OPTIONAL RUNTIME DESTINATION bin COMPONENT main)
