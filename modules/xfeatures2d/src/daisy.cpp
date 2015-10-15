@@ -61,7 +61,6 @@ namespace xfeatures2d
 // constants
 const double g_sigma_0 = 1;
 const double g_sigma_1 = sqrt(2.0);
-const double g_sigma_2 = 8;
 const double g_sigma_step = std::pow(2,1.0/2);
 const int g_scale_st = int( (log(g_sigma_1/g_sigma_0)) / log(g_sigma_step) );
 static int g_scale_en = 1;
@@ -73,6 +72,13 @@ static const int MAX_CUBE_NO = 64;
 static const int MAX_NORMALIZATION_ITER = 5;
 
 int g_selected_cubes[MAX_CUBE_NO]; // m_rad_q_no < MAX_CUBE_NO
+
+void DAISY::compute( InputArrayOfArrays images,
+                     std::vector<std::vector<KeyPoint> >& keypoints,
+                     OutputArrayOfArrays descriptors )
+{
+    DescriptorExtractor::compute(images, keypoints, descriptors);
+}
 
 /*
  !DAISY implementation
@@ -408,7 +414,7 @@ struct LayeredGradientInvoker : ParallelLoopBody
     {
       for (int l = range.start; l < range.end; ++l)
       {
-        double angle = l * 2*CV_PI / layer_no;
+        double angle = l * 2 * (float)CV_PI / layer_no;
         Mat layer( dx.rows, dx.cols, CV_32F, layers->ptr<float>(l,0,0) );
         addWeighted( dx, cos( angle ), dy, sin( angle ), 0.0f, layer, CV_32F );
         max( layer, 0.0f, layer );
@@ -479,15 +485,18 @@ static int quantize_radius( float rad, const int _rad_q_no, const Mat& _cube_sig
 
 static void normalize_partial( float* desc, const int _grid_point_number, const int _hist_th_q_no )
 {
-    float norm = 0.0f;
     for( int h=0; h<_grid_point_number; h++ )
     {
       // l2 norm
+      double sum = 0.0f;
       for( int i=0; i<_hist_th_q_no; i++ )
       {
-          norm += sqrt(desc[h*_hist_th_q_no + i]
-                     * desc[h*_hist_th_q_no + i]);
+          sum += desc[h*_hist_th_q_no + i]
+               * desc[h*_hist_th_q_no + i];
       }
+
+      float norm = (float)sqrt( sum );
+
       if( norm != 0.0 )
       // divide with norm
       for( int i=0; i<_hist_th_q_no; i++ )
@@ -507,18 +516,19 @@ static void normalize_sift_way( float* desc, const int _descriptor_size )
       iter++;
       changed = false;
 
-      float norm = 0.0f;
+      double sum = 0.0f;
       for( int i=0; i<_descriptor_size; i++ )
       {
-          norm += sqrt(desc[_descriptor_size + i]
-                     * desc[_descriptor_size + i]);
+          sum += desc[i] * desc[i];
       }
+
+      float norm = (float)sqrt( sum );
 
       if( norm > 1e-5 )
       // divide with norm
       for( int i=0; i<_descriptor_size; i++ )
       {
-          desc[_descriptor_size + i] /= norm;
+          desc[i] /= norm;
       }
 
       for( h=0; h<_descriptor_size; h++ )
@@ -535,17 +545,19 @@ static void normalize_sift_way( float* desc, const int _descriptor_size )
 static void normalize_full( float* desc, const int _descriptor_size )
 {
     // l2 norm
-    float norm = 0.0f;
+    double sum = 0.0f;
     for( int i=0; i<_descriptor_size; i++ )
     {
-        norm += sqrt(desc[_descriptor_size + i]
-                   * desc[_descriptor_size + i]);
+        sum += desc[i] * desc[i];
     }
+
+    float norm = (float)sqrt( sum );
+
     if( norm != 0.0 )
     // divide with norm
     for( int i=0; i<_descriptor_size; i++ )
     {
-        desc[_descriptor_size + i] /= norm;
+        desc[i] /= norm;
     }
 }
 
@@ -590,10 +602,10 @@ static void bi_get_histogram( float* histogram, const double y, const double x, 
 
     // A C --> pixel positions
     // B D
-    const float* A = hcube->ptr<float>(0,  mny   *_hist_th_q_no,  mnx   *_hist_th_q_no);
-    const float* B = hcube->ptr<float>(0, (mny+1)*_hist_th_q_no,  mnx   *_hist_th_q_no);
-    const float* C = hcube->ptr<float>(0,  mny   *_hist_th_q_no, (mnx+1)*_hist_th_q_no);
-    const float* D = hcube->ptr<float>(0, (mny+1)*_hist_th_q_no, (mnx+1)*_hist_th_q_no);
+    const float* A = hcube->ptr<float>(0,  mny   ,  mnx   );
+    const float* B = hcube->ptr<float>(0, (mny+1),  mnx   );
+    const float* C = hcube->ptr<float>(0,  mny   , (mnx+1));
+    const float* D = hcube->ptr<float>(0, (mny+1), (mnx+1));
 
     double alpha = mnx+1-x;
     double beta  = mny+1-y;
@@ -1144,7 +1156,7 @@ struct ComputeHistogramsInvoker : ParallelLoopBody
                Rect( 0, 0, layers->at(r).size[2]-1, layers->at(r).size[1]-1 ) )
              ) continue;
 
-          float* hist = layers->at(r).ptr<float>(0,y*_hist_th_q_no,x*_hist_th_q_no);
+          float* hist = layers->at(r).ptr<float>(0,y,x);
 
           for( int h = 0; h < _hist_th_q_no; h++ )
             hist[h] = layers->at(r+1).at<float>(h,y,x);
@@ -1255,7 +1267,7 @@ struct RoundingInvoker : ParallelLoopBody
     {
       for (int c = range.start; c < range.end; ++c)
       {
-        scale_map->at<float>(r,c) = (float) round( scale_map->at<float>(r,c) );
+        scale_map->at<float>(r,c) = (float) cvRound( scale_map->at<float>(r,c) );
       }
     }
     int r;
@@ -1533,8 +1545,6 @@ void DAISY_Impl::compute( InputArray _image, Rect roi, OutputArray _descriptors 
     // compute full desc
     compute_descriptors( &descriptors );
     normalize_descriptors( &descriptors );
-
-    release_auxiliary();
 }
 
 // full scope
@@ -1562,8 +1572,6 @@ void DAISY_Impl::compute( InputArray _image, OutputArray _descriptors )
     // compute full desc
     compute_descriptors( &descriptors );
     normalize_descriptors( &descriptors );
-
-    release_auxiliary();
 }
 
 // constructor

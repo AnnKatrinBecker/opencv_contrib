@@ -660,7 +660,7 @@ TEST(Features2d_RotationInvariance_Descriptor_LATCH, regression)
     test.safe_run();
 }
 
-TEST(Features2d_RotationInvariance_Descriptor_DAISY, regression)
+TEST(DISABLED_Features2d_RotationInvariance_Descriptor_DAISY, regression)
 {
     DescriptorRotationInvarianceTest test(BRISK::create(),
                                           DAISY::create(15, 3, 8, 8, DAISY::NRM_NONE, noArray(), true, true),
@@ -669,6 +669,32 @@ TEST(Features2d_RotationInvariance_Descriptor_DAISY, regression)
     test.safe_run();
 }
 
+TEST(Features2d_RotationInvariance_Descriptor_BRIEF_64, regression)
+{
+    DescriptorRotationInvarianceTest test(SURF::create(),
+                                          BriefDescriptorExtractor::create(64,true),
+                                          NORM_L1,
+                                          0.98f);
+    test.safe_run();
+}
+
+TEST(Features2d_RotationInvariance_Descriptor_BRIEF_32, regression)
+{
+    DescriptorRotationInvarianceTest test(SURF::create(),
+                                          BriefDescriptorExtractor::create(32,true),
+                                          NORM_L1,
+                                          0.97f);
+    test.safe_run();
+}
+
+TEST(Features2d_RotationInvariance_Descriptor_BRIEF_16, regression)
+{
+    DescriptorRotationInvarianceTest test(SURF::create(),
+                                          BriefDescriptorExtractor::create(16,true),
+                                          NORM_L1,
+                                          0.85f);
+    test.safe_run();
+}
 
 /*
  * Detector's scale invariance check
@@ -728,7 +754,7 @@ TEST(Features2d_RotationInvariance2_Detector_SURF, regression)
     ASSERT_LT( fabs(keypoints[1].response - keypoints[4].response), 1e-6);
 }
 
-TEST(Features2d_ScaleInvariance_Descriptor_DAISY, regression)
+TEST(DISABLED_Features2d_ScaleInvariance_Descriptor_DAISY, regression)
 {
     DescriptorScaleInvarianceTest test(BRISK::create(),
                                        DAISY::create(15, 3, 8, 8, DAISY::NRM_NONE, noArray(), true, true),
